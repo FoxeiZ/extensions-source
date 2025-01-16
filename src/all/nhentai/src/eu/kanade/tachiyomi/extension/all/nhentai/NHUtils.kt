@@ -25,6 +25,11 @@ object NHUtils {
             tags["character"]?.joinToString { it.name }?.let {
                 append("Characters: ", it, "\n\n")
             }
+            tags["language"]?.filter { it.name != "translated" }
+                ?.joinToString { it.name }
+                ?.let {
+                    append("Languages: ", it, "\n")
+                }
         }
     }
 
