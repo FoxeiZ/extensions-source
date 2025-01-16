@@ -86,7 +86,7 @@ jobs:
 
       - name: Upload APKs (${{ matrix.chunk.number }})
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
-        if: "github.repository == 'keiyoushi/extensions-source'"
+        if: "github.repository == 'foxeiz/extensions-source'"
         with:
           name: "individual-apks-${{ matrix.chunk.number }}"
           path: "**/*.apk"
@@ -98,7 +98,7 @@ jobs:
   publish:
     name: Publish extension repo
     needs: [prepare, build]
-    if: "github.repository == 'keiyoushi/extensions-source'"
+    if: "github.repository == 'foxeiz/extensions-source'"
     runs-on: 'ubuntu-24.04'
     steps:
       - name: Download APK artifacts
@@ -130,8 +130,8 @@ jobs:
       - name: Checkout repo branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          repository: keiyoushi/extensions
-          token: ${{ secrets.BOT_PAT }}
+          repository: foxeiz/extensions-build
+          token: ${{ secrets.TOUHOUKEN }}
           ref: repo
           path: repo
 
