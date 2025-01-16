@@ -318,7 +318,8 @@ open class NHentai(
                         "w" -> ".webp"
                         "p" -> ".png"
                         "g" -> ".gif"
-                        else -> ".jpg"
+                        "j" -> ".jpg"
+                        else -> null
                     },
             )
         }
