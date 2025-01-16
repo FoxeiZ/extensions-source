@@ -2,6 +2,9 @@ package eu.kanade.tachiyomi.extension.all.nhentai
 
 import android.app.Application
 import android.content.SharedPreferences
+import android.widget.Toast
+import androidx.preference.CheckBoxPreference
+import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.extension.all.nhentai.NHUtils.getArtists
@@ -37,6 +40,7 @@ import rx.Observable
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
+import java.util.regex.PatternSyntaxException
 
 open class NHentai(
     override val lang: String,
@@ -72,8 +76,9 @@ open class NHentai(
         "full" -> true
         else -> false
     }
+    private var displayShortenTitle: Boolean = preferences.getBoolean(SHORTEN_TITLE_PREF, true)
+    private var shortenTitleRegex = preferences.getString(SHORTEN_REGEX_PREF, DEFAULT_SHORTEN_REGEX)!!.toRegex()
 
-    private val shortenTitleRegex = Regex("""(\[[^]]*]|[({][^)}]*[)}])""")
     private val dataRegex = Regex("""JSON\.parse\(\s*"(.*)"\s*\)""")
     private val hentaiSelector = "script:containsData(JSON.parse):not(:containsData(media_server))"
     private fun String.shortenTitle() = this.replace(shortenTitleRegex, "").trim()
@@ -96,6 +101,42 @@ open class NHentai(
             }
         }.also(screen::addPreference)
 
+        CheckBoxPreference(screen.context).apply {
+            key = SHORTEN_TITLE_PREF
+            title = SHORTEN_TITLE_PREF
+            summary = "Remove brackets from title"
+            setDefaultValue(true)
+            setOnPreferenceChangeListener { _, newValue ->
+                displayShortenTitle = newValue as Boolean
+                true
+            }
+        }.also(screen::addPreference)
+
+        EditTextPreference(screen.context).apply {
+            key = SHORTEN_REGEX_PREF
+            title = "Regex to apply to shorten title"
+            summary = "Leave empty to use default"
+
+            setOnBindEditTextListener {
+                it.hint = DEFAULT_SHORTEN_REGEX
+            }
+            setDefaultValue(DEFAULT_SHORTEN_REGEX)
+            setOnPreferenceChangeListener { _, newValue ->
+                try {
+                    if ((newValue as String).isBlank()) {
+                        text = DEFAULT_SHORTEN_REGEX
+                        shortenTitleRegex = DEFAULT_SHORTEN_REGEX.toRegex()
+                        return@setOnPreferenceChangeListener false
+                    }
+                    shortenTitleRegex = Regex(newValue)
+                } catch (e: PatternSyntaxException) {
+                    Toast.makeText(screen.context, "Invalid regex", Toast.LENGTH_SHORT).show()
+                    return@setOnPreferenceChangeListener false
+                }
+                true
+            }
+        }.also(screen::addPreference)
+
         addRandomUAPreferenceToScreen(screen)
     }
 
@@ -106,7 +147,7 @@ open class NHentai(
     override fun latestUpdatesFromElement(element: Element) = SManga.create().apply {
         setUrlWithoutDomain(element.select("a").attr("href"))
         title = element.select("a > div").text().replace("\"", "").let {
-            if (displayFullTitle) it.trim() else it.shortenTitle()
+            if (displayFullTitle || displayShortenTitle) it.shortenTitle() else it.trim()
         }
         thumbnail_url = element.selectFirst(".cover img")!!.let { img ->
             if (img.hasAttr("data-src")) img.attr("abs:data-src") else img.attr("abs:src")
@@ -218,7 +259,9 @@ open class NHentai(
 
         val data = json.parseAs<Hentai>()
         return SManga.create().apply {
-            title = if (displayFullTitle) data.title.english ?: data.title.japanese ?: data.title.pretty!! else data.title.pretty ?: (data.title.english ?: data.title.japanese)!!.shortenTitle()
+            title = (if (displayFullTitle) data.title.english ?: data.title.japanese ?: data.title.pretty!! else data.title.pretty ?: data.title.english ?: data.title.japanese!!)
+                .let { if (displayShortenTitle) it.shortenTitle() else it }
+                .trim()
             thumbnail_url = document.select("#cover > a > img").attr("data-src")
             status = SManga.COMPLETED
             artist = getArtists(data)
@@ -347,6 +390,9 @@ open class NHentai(
 
     companion object {
         const val PREFIX_ID_SEARCH = "id:"
+        const val DEFAULT_SHORTEN_REGEX = """(\[[^]]*]|[({][^)}]*[)}])"""
         private const val TITLE_PREF = "Display manga title as:"
+        private const val SHORTEN_TITLE_PREF = "Cleanup manga titles"
+        private const val SHORTEN_REGEX_PREF = "Regex that applies to cleanup title"
     }
 }
