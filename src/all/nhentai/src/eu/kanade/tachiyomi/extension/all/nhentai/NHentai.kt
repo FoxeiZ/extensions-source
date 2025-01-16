@@ -130,7 +130,7 @@ open class NHentai(
                     }
                     shortenTitleRegex = Regex(newValue)
                 } catch (e: PatternSyntaxException) {
-                    Toast.makeText(screen.context, "Invalid regex", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(screen.context, "Invalid regex. Reset to the previous one", Toast.LENGTH_SHORT).show()
                     return@setOnPreferenceChangeListener false
                 }
                 true
